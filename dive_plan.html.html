@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多潛水計劃計算器 (SSI / U.S. Navy Tables)</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-color: #0284c7;
+      --accent-hover: #0369a1;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --warning-color: #ef4444;
+      --border-color: #334155;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #38bdf8;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #38bdf8;
+      margin-bottom: 15px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: #0f172a;
+      color: var(--text-main);
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    .row-inputs {
+      display: flex;
+      gap: 10px;
+    }
+
+    .row-inputs > div {
+      flex: 1;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 6px;
+      border: none;
+      background-color: var(--accent-color);
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-add {
+      background-color: #059669;
+      margin-bottom: 20px;
+    }
+    .btn-add:hover {
+      background-color: #047857;
+    }
+
+    .result-box {
+      margin-top: 15px;
+      padding: 12px;
+      background-color: #0f172a;
+      border-radius: 8px;
+      border-left: 4px solid var(--accent-color);
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+    }
+
+    .highlight {
+      font-weight: bold;
+      color: #38bdf8;
+    }
+
+    .warning {
+      color: var(--warning-color);
+      font-weight: bold;
+    }
+
+    .badge {
+      background: #0369a1;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+    }
+
+    .sit-box {
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px dashed #0284c7;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🤿 免減壓潛水計劃計算器</h1>
+  <div id="divesContainer"></div>
+  <button class="btn-add" onclick="addDiveCard()">＋ 新增下一潛 (Add Next Dive)</button>
+</div>
+
+<script>
+const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K'];
+
+const TABLE1 = [
+  { depth: 9, air: 9, ean32: 12, ean36: 13, ndl: 205, limits: [15,30,45,60,75,95,120,145,170,205] },
+  { depth: 12, air: 12, ean32: 16, ean36: 17, ndl: 130, limits: [5,15,25,30,40,50,70,80,100,110,130] },
+  { depth: 15, air: 15, ean32: 19, ean36: 21, ndl: 70, limits: [0,10,15,25,30,40,50,60,70] },
+  { depth: 18, air: 18, ean32: 23, ean36: 25, ndl: 50, limits: [0,10,15,20,25,30,40,50] },
+  { depth: 21, air: 21, ean32: 26, ean36: 28, ndl: 40, limits: [0,5,10,15,20,30,35,40] },
+  { depth: 24, air: 24, ean32: 30, ean36: 32, ndl: 30, limits: [0,5,10,15,20,25,30] },
+  { depth: 27, air: 27, ean32: 33, ean36: 99, ndl: 25, limits: [0,5,10,12,15,20,25] },
+  { depth: 30, air: 30, ean32: 37, ean36: 99, ndl: 20, limits: [0,5,7,10,15,20] },
+  { depth: 33, air: 34, ean32: 40, ean36: 99, ndl: 15, limits: [0,0,5,10,13,15] },
+  { depth: 36, air: 37, ean32: 99, ean36: 99, ndl: 10, limits: [0,0,5,10] },
+  { depth: 40, air: 40, ean32: 99, ean36: 99, ndl: 5, limits: [0,0,5] }
+];
+
+const TABLE2_RANGES = {
+  'A': [[10, 720, 'A']],
+  'B': [[0, 9, 'B'], [10, 200, 'A']],
+  'C': [[0, 9, 'C'], [10, 99, 'B'], [100, 290, 'A']],
+  'D': [[0, 9, 'D'], [10, 69, 'C'], [70, 158, 'B'], [159, 348, 'A']],
+  'E': [[0, 9, 'E'], [10, 53, 'D'], [54, 117, 'C'], [118, 205, 'B'], [206, 395, 'A']],
+  'F': [[0, 9, 'F'], [10, 45, 'E'], [46, 89, 'D'], [90, 148, 'C'], [149, 238, 'B'], [239, 426, 'A']],
+  'G': [[0, 9, 'G'], [10, 40, 'F'], [41, 75, 'E'], [76, 119, 'D'], [120, 178, 'C'], [179, 266, 'B'], [267, 456, 'A']],
+  'H': [[0, 9, 'H'], [10, 36, 'G'], [37, 67, 'F'], [68, 102, 'E'], [103, 144, 'D'], [145, 203, 'C'], [204, 290, 'B'], [291, 479, 'A']],
+  'I': [[0, 9, 'I'], [10, 33, 'H'], [34, 59, 'G'], [60, 89, 'F'], [90, 123, 'E'], [124, 164, 'D'], [165, 223, 'C'], [224, 312, 'B'], [313, 501, 'A']],
+  'J': [[0, 9, 'J'], [10, 31, 'I'], [32, 54, 'H'], [55, 80, 'G'], [81, 107, 'F'], [108, 140, 'E'], [141, 185, 'D'], [186, 243, 'C'], [244, 341, 'B'], [342, 530, 'A']],
+  'K': [[0, 9, 'K'], [10, 28, 'J'], [29, 49, 'I'], [50, 71, 'H'], [72, 95, 'G'], [96, 123, 'F'], [124, 155, 'E'], [156, 198, 'D'], [199, 258, 'C'], [259, 348, 'B'], [349, 538, 'A']]
+};
+
+const TABLE3_RNT = {
+  9:  { A:12, B:25, C:39, D:54, E:70, F:88, G:109, H:132, I:159, J:190 },
+  12: { A:7,  B:17, C:25, D:37, E:49, F:61, G:73,  H:87,  I:101, J:116 },
+  15: { A:6,  B:13, C:21, D:29, E:38, F:47, G:56,  H:66 },
+  18: { A:5,  B:11, C:17, D:24, E:30, F:36, G:44 },
+  21: { A:4,  B:9,  C:15, D:20, E:26, F:31, G:37 },
+  24: { A:4,  B:8,  C:13, D:18, E:23, F:28 },
+  27: { A:3,  B:7,  C:11, D:16, E:20, F:24 },
+  30: { A:3,  B:7,  C:10, D:14, E:18 },
+  33: { A:3,  B:6,  C:10, D:13 },
+  36: { A:3,  B:6,  C:9 },
+  40: { A:3 }
+};
+
+let diveCount = 0;
+
+function getTargetRow(depth, gas) {
+  for (let row of TABLE1) {
+    let matchDepth = row.depth;
+    if (gas === 'air') matchDepth = row.air;
+    if (gas === 'ean32') matchDepth = row.ean32;
+    if (gas === 'ean36') matchDepth = row.ean36;
+    if (matchDepth >= depth) return row;
+  }
+  return null;
+}
+
+function addDiveCard() {
+  diveCount++;
+  const container = document.getElementById('divesContainer');
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = `diveCard_${diveCount}`;
+
+  let sitHTML = '';
+  if (diveCount > 1) {
+    sitHTML = `
+      <div class="sit-box">
+        <label>與前一潛之間的水面休息時間 (SIT)</label>
+        <div class="row-inputs">
+          <div><input type="number" id="sitH_${diveCount}" placeholder="小時" min="0" value="2"></div>
+          <div><input type="number" id="sitM_${diveCount}" placeholder="分鐘" min="0" max="59" value="0"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  card.innerHTML = `
+    <div class="card-title">
+      <span>第 ${diveCount} 潛 (Dive ${diveCount})</span>
+    </div>
+    ${sitHTML}
+    <div class="form-group">
+      <label>使用氣體</label>
+      <select id="gas_${diveCount}">
+        <option value="air">Air (空氣 21%)</option>
+        <option value="ean32">EAN32 (高氧 32%)</option>
+        <option value="ean36">EAN36 (高氧 36%)</option>
+      </select>
+    </div>
+    <div class="row-inputs">
+      <div class="form-group">
+        <label>深度 (Meters)</label>
+        <input type="number" id="depth_${diveCount}" placeholder="例如: 18">
+      </div>
+      <div class="form-group">
+        <label>預計底時間 (Mins)</label>
+        <input type="number" id="time_${diveCount}" placeholder="例如: 40">
+      </div>
+    </div>
+    <button onclick="calculateAllDives()">計算至第 ${diveCount} 潛</button>
+    <div id="result_${diveCount}" class="result-box" style="display:none;"></div>
+  `;
+
+  container.appendChild(card);
+}
+
+function calculateAllDives() {
+  let currentGroup = '';
+
+  for (let i = 1; i <= diveCount; i++) {
+    const gas = document.getElementById(`gas_${i}`).value;
+    const depth = parseFloat(document.getElementById(`depth_${i}`).value);
+    const time = parseFloat(document.getElementById(`time_${i}`).value);
+    const resultDiv = document.getElementById(`result_${i}`);
+
+    if (!depth || !time) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `<span class="warning">⚠️ 請輸入深度與底時間！</span>`;
+      break;
+    }
+
+    let rnt = 0;
+    let sitMins = 0;
+    let groupBeforeDive = '';
+
+    if (i > 1) {
+      const sitH = parseInt(document.getElementById(`sitH_${i}`).value) || 0;
+      const sitM = parseInt(document.getElementById(`sitM_${i}`).value) || 0;
+      sitMins = (sitH * 60) + sitM;
+
+      let newGroup = 'A';
+      const ranges = TABLE2_RANGES[currentGroup];
+      if (ranges) {
+        for (let r of ranges) {
+          if (sitMins >= r[0] && sitMins <= r[1]) {
+            newGroup = r[2];
+            break;
+          }
+          if (sitMins > ranges[ranges.length - 1][1]) newGroup = 'A';
+        }
+      }
+      groupBeforeDive = newGroup;
+
+      const row = getTargetRow(depth, gas);
+      if (row) {
+        const depthKey = row.air;
+        const rntMap = TABLE3_RNT[depthKey] || {};
+        rnt = rntMap[groupBeforeDive] || 0;
+      }
+    }
+
+    const row = getTargetRow(depth, gas);
+    if (!row) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `<span class="warning">⚠️ 超出安全深度極限！</span>`;
+      break;
+    }
+
+    const maxAllowedBT = row.ndl - rnt;
+    const totalEquivTime = time + rnt;
+
+    let warningText = '';
+    if (time > maxAllowedBT) {
+      warningText = `<br><span class="warning">❌ 超出免減壓極限！最大建議底時間為 <b>${maxAllowedBT} mins</b></span>`;
+    }
+
+    let exitGroup = 'A';
+    for (let k = 0; k < row.limits.length; k++) {
+      if (totalEquivTime <= row.limits[k]) {
+        exitGroup = GROUPS[k];
+        break;
+      }
+      if (k === row.limits.length - 1) exitGroup = GROUPS[k+1];
+    }
+
+    currentGroup = exitGroup;
+
+    resultDiv.style.display = 'block';
+    let sitInfo = i > 1 ? `<div class="result-row"><span>SIT 時間:</span> <span>${sitMins} 分鐘 (進入 ${groupBeforeDive} 組)</span></div>` : '';
+    let rntInfo = i > 1 ? `<div class="result-row"><span>餘氮時間 (RNT):</span> <span class="highlight">${rnt} mins</span></div>` : '';
+
+    resultDiv.innerHTML = `
+      ${sitInfo}
+      ${rntInfo}
+      <div class="result-row"><span>最大允許底時間 (Adjusted NDL):</span> <span class="highlight">${maxAllowedBT} mins</span></div>
+      <div class="result-row"><span>出水壓力群組:</span> <span class="badge">${exitGroup}</span></div>
+      ${warningText}
+    `;
+  }
+}
+
+addDiveCard();
+</script>
+
+</body>
+</html>
