@@ -1,297 +1,279 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>藍點多日潛水行程規劃器</title>
-  <style>
-    :root {
-      --bg: #0f172a; --card: #1e293b; --primary: #0ea5e9; --danger: #ef4444;
-      --text: #f8fafc; --muted: #94a3b8; --border: #334155; --success: #10b981;
-    }
-    * { box-sizing: border-box; font-family: -apple-system, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 20px 15px; margin: 0; padding-bottom: 120px; }
-    h1 { text-align: center; color: var(--primary); font-size: 1.4rem; }
-    
-    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px; }
-    .card-title { font-size: 1.1rem; font-weight: bold; color: var(--primary); }
-    
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-    .form-group { display: flex; flex-direction: column; }
-    label { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
-    input, select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 8px; font-size: 16px; }
-    
-    .btn-add { width: 100%; padding: 14px; background: var(--success); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 20px; }
-    .btn-calc { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 30px); z-index: 100; box-shadow: 0 4px 12px rgba(14,165,233,0.4); }
-    
-    .result-box { margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; display: none; }
-    .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
-    .val { font-weight: bold; color: var(--primary); }
-    .badge { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
-    
-    .alert-danger { background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--danger); padding: 12px; margin-top: 10px; border-radius: 4px; font-size: 0.9rem; }
-    .alert-danger span { color: var(--danger); font-weight: bold; display: block; margin-bottom: 4px; }
-    
-    .nofly-box { background: rgba(16, 185, 129, 0.1); border: 1px dashed var(--success); padding: 16px; text-align: center; border-radius: 12px; margin-top: 20px; display: none; }
-    .nofly-time { font-size: 1.5rem; color: var(--success); font-weight: bold; margin: 10px 0; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLUE POINT DIVING CENTRE - 出船預訂系統</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-
-  <h1>📅 藍點多日潛水行程規劃器</h1>
-  
-  <div id="dives-container"></div>
-  <button class="btn-add" onclick="addDive()">＋ 新增下一潛 (Add Dive)</button>
-  <div id="nofly-result" class="nofly-box">
-    <div>✈️ 建議最快可飛行時間 (18小時標準)</div>
-    <div class="nofly-time" id="nofly-text">--</div>
-    <div style="font-size:0.75rem; color:var(--muted);">保守建議為出水後 24 小時</div>
-  </div>
-
-  <button class="btn-calc" onclick="calculateTrip()">🔄 計算行程安全與免減壓時間</button>
-
-<script>
-const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Z'];
-const TABLE1 = [
-  { d: 12, ndl: 130, lim: [5,15,25,30,40,50,70,80,100,110,130] },
-  { d: 15, ndl: 70,  lim: [10,15,25,30,40,50,60,70] },
-  { d: 18, ndl: 50,  lim: [10,15,20,25,30,40,50] },
-  { d: 21, ndl: 40,  lim: [5,10,15,20,30,35,40] }
-];
-const TABLE2 = {
-  'A': [[10, 720, 'A']],
-  'B': [[0, 9, 'B'], [10, 200, 'A']],
-  'C': [[0, 9, 'C'], [10, 99, 'B'], [100, 290, 'A']],
-  'D': [[0, 9, 'D'], [10, 69, 'C'], [70, 158, 'B'], [159, 348, 'A']],
-  'E': [[0, 9, 'E'], [10, 53, 'D'], [54, 117, 'C'], [118, 205, 'B'], [206, 395, 'A']],
-  'F': [[0, 9, 'F'], [10, 45, 'E'], [46, 89, 'D'], [90, 148, 'C'], [149, 238, 'B'], [239, 426, 'A']],
-  'G': [[0, 9, 'G'], [10, 40, 'F'], [41, 75, 'E'], [76, 119, 'D'], [120, 178, 'C'], [179, 266, 'B'], [267, 456, 'A']]
-};
-const TABLE3 = {
-  12: { A:7, B:17, C:25, D:37, E:49, F:61, G:73 },
-  15: { A:6, B:13, C:21, D:29, E:38, F:47, G:56 },
-  18: { A:5, B:11, C:17, D:24, E:30, F:36, G:44 },
-  21: { A:4, B:9,  C:15, D:20, E:26, F:31, G:37 }
-};
-
-let diveCount = 0;
-
-function addDive() {
-  diveCount++;
-  const container = document.getElementById('dives-container');
-  const div = document.createElement('div');
-  div.className = 'card';
-  div.id = `dive_${diveCount}`;
-  
-  let defaultDay = 1;
-  let defaultTime = "09:00";
-  if(diveCount > 1) {
-      let prevDay = parseInt(document.getElementById(`day_${diveCount-1}`).value);
-      let prevTime = document.getElementById(`time_${diveCount-1}`).value;
-      let prevABT = parseInt(document.getElementById(`abt_${diveCount-1}`).value) || 45;
-      
-      let [h, m] = prevTime.split(':').map(Number);
-      let nextMins = h * 60 + m + prevABT + 180;
-      if(nextMins >= 1440) { prevDay++; nextMins -= 1440; }
-      
-      defaultDay = prevDay;
-      defaultTime = `${String(Math.floor(nextMins/60)).padStart(2,'0')}:${String(nextMins%60).padStart(2,'0')}`;
-  }
-
-  div.innerHTML = `
-    <div class="card-header">
-      <div class="card-title">潛水 ${diveCount}</div>
-      <select id="gas_${diveCount}" style="width:120px; padding:4px;">
-        <option value="air">Air 21%</option>
-        <option value="ean32">EAN32</option>
-        <option value="ean36">EAN36</option>
-      </select>
-    </div>
-    <div class="grid-2">
-      <div class="form-group">
-        <label>第幾日 (Day)</label>
-        <input type="number" id="day_${diveCount}" min="1" value="${defaultDay}">
-      </div>
-      <div class="form-group">
-        <label>落水時間</label>
-        <input type="time" id="time_${diveCount}" value="${defaultTime}">
-      </div>
-    </div>
-    <div class="grid-2">
-      <div class="form-group">
-        <label>深度 (m)</label>
-        <input type="number" id="depth_${diveCount}" placeholder="如: 18">
-      </div>
-      <div class="form-group">
-        <label>底時間 ABT (min)</label>
-        <input type="number" id="abt_${diveCount}" placeholder="如: 45">
-      </div>
-    </div>
-    <div id="res_${diveCount}" class="result-box"></div>
-  `;
-  container.appendChild(div);
-}
-
-function getAbsMins(day, timeStr) {
-  let [h, m] = timeStr.split(':').map(Number);
-  return (day - 1) * 24 * 60 + h * 60 + m;
-}
-
-function formatTimeFromMins(absMins) {
-  let day = Math.floor(absMins / (24 * 60)) + 1;
-  let minsOfDay = absMins % (24 * 60);
-  let h = Math.floor(minsOfDay / 60);
-  let m = minsOfDay % 60;
-  return `Day ${day} ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-}
-
-function getEAD(depth, gas) {
-  if (gas === 'air') return depth;
-  let fO2 = (gas === 'ean36') ? 0.36 : 0.32;
-  let ead = ((1 - fO2) * (depth + 10) / 0.79) - 10;
-  return Math.max(0, ead);
-}
-
-function getTable1Data(ead) {
-  for (let r of TABLE1) if (r.d >= ead) return r;
-  return null;
-}
-
-function getMinSITForTargetGroup(startGroup, targetGroup) {
-  if(startGroup === targetGroup) return 0;
-  if(targetGroup === 'A') {
-      let ranges = TABLE2[startGroup];
-      return ranges[ranges.length-1][0];
-  }
-  let ranges = TABLE2[startGroup];
-  for(let r of ranges) {
-      if(r[2] === targetGroup) return r[0];
-  }
-  return 720;
-}
-
-function calculateTrip() {
-  let currentGroup = '';
-  let prevExitAbsMins = 0;
-  let tripValid = true;
-  let lastExitMins = 0;
-
-  for (let i = 1; i <= diveCount; i++) {
-    let res = document.getElementById(`res_${i}`);
-    res.style.display = 'block';
-    res.innerHTML = '';
-    
-    let day = parseInt(document.getElementById(`day_${i}`).value);
-    let time = document.getElementById(`time_${i}`).value;
-    let depth = parseFloat(document.getElementById(`depth_${i}`).value);
-    let abt = parseInt(document.getElementById(`abt_${i}`).value);
-    let gas = document.getElementById(`gas_${i}`).value;
-    
-    if(!day || !time || !depth || !abt) {
-        res.innerHTML = '<span style="color:var(--danger)">請填寫完整資料</span>';
-        tripValid = false; break;
-    }
-
-    let entryMins = getAbsMins(day, time);
-    let ead = getEAD(depth, gas);
-    let t1 = getTable1Data(ead);
-    
-    if(!t1) {
-        res.innerHTML = '<span style="color:var(--danger)">深度超出免減壓極限！</span>';
-        tripValid = false; break;
-    }
-
-    let sitMins = 0;
-    let preDiveGroup = '';
-    let rnt = 0;
-
-    if (i > 1) {
-      sitMins = entryMins - prevExitAbsMins;
-      if (sitMins < 0) {
-          res.innerHTML = '<span style="color:var(--danger)">時間錯誤：此潛落水時間早於上一潛出水時間！</span>';
-          tripValid = false; break;
-      }
-      
-      let newGroup = 'A';
-      if (TABLE2[currentGroup]) {
-          for(let r of TABLE2[currentGroup]) {
-              if (sitMins >= r[0] && sitMins <= r[1]) { newGroup = r[2]; break; }
-              if (sitMins > TABLE2[currentGroup][TABLE2[currentGroup].length-1][1]) newGroup = 'A';
-          }
-      }
-      preDiveGroup = newGroup;
-      
-      if(TABLE3[t1.d] && TABLE3[t1.d][preDiveGroup]) {
-          rnt = TABLE3[t1.d][preDiveGroup];
-      }
-    }
-
-    let adjNDL = t1.ndl - rnt;
-    let tbt = abt + rnt;
-    
-    if (abt > adjNDL) {
-        let maxAllowedRNT = t1.ndl - abt;
-        let suggestionHTML = '';
+<body class="bg-slate-100 p-4">
+    <div class="max-w-xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden p-6">
+        <!-- 英文店名與中文系統名 -->
+        <div class="text-center mb-6">
+            <span class="text-xs font-bold tracking-widest text-blue-600 uppercase">BLUE POINT DIVING CENTRE</span>
+            <h2 class="text-2xl font-bold text-slate-800 mt-1">藍點潛水出船預訂系統</h2>
+            <p class="text-xs text-slate-500">Boat Trip Booking & Equipment Rental System</p>
+        </div>
         
-        if (maxAllowedRNT < 0) {
-            suggestionHTML = `<span>❌ 預定時間過長</span>此深度即使無餘氮，最大停留時間也只有 ${t1.ndl} 分鐘。`;
-        } else {
-            let targetGroup = null;
-            let groupKeys = Object.keys(TABLE3[t1.d]).reverse();
-            for(let g of groupKeys) {
-                if(TABLE3[t1.d][g] <= maxAllowedRNT) {
-                    targetGroup = g;
-                    break;
-                }
-            }
+        <!-- 預訂表單 -->
+        <form id="bookingForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">參加者姓名 / Participant Name</label>
+                <input type="text" id="name" required placeholder="例如: Alex Chan (教練/學員)" class="mt-1 w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700">選擇首選組別 (Preferred Group)</label>
+                <select id="preferredGroup" class="mt-1 w-full p-2.5 border rounded-lg text-sm bg-white">
+                    <option value="Group A">Group A (1-3號位)</option>
+                    <option value="Group B1">Group B1 (4-8號位)</option>
+                    <option value="Group B2">Group B2 (9-11號位)</option>
+                    <option value="Group B3">Group B3 (12-14號位)</option>
+                    <option value="Group C1">Group C1 (15-19號位)</option>
+                    <option value="Group C2">Group C2 (20-22號位)</option>
+                    <option value="Group C3">Group C3 (23-25號位)</option>
+                </select>
+                <p class="text-xs text-slate-400 mt-1">* 若首選組別已滿，系統將自動跳轉至同側相鄰空位。</p>
+            </div>
+
+            <!-- 裝備租借區 (連尺碼) -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">裝備租借與尺碼 / Equipment Rental & Sizing</label>
+                <div class="space-y-2 border p-3 rounded-lg bg-slate-50 text-sm">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2"><input type="checkbox" id="needMask" class="rounded"><span>Mask 面鏡</span></label>
+                        <input type="text" id="maskSize" placeholder="尺碼/Size" class="w-24 p-1 border text-xs rounded bg-white">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2"><input type="checkbox" id="needTopSuit" class="rounded"><span>Upper Suit 上身防寒衣</span></label>
+                        <input type="text" id="topSuitSize" placeholder="例如: M" class="w-24 p-1 border text-xs rounded bg-white">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2"><input type="checkbox" id="needBottomSuit" class="rounded"><span>Lower Suit 下身防寒褲</span></label>
+                        <input type="text" id="bottomSuitSize" placeholder="例如: M" class="w-24 p-1 border text-xs rounded bg-white">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2"><input type="checkbox" id="needBcd" class="rounded"><span>BCD 浮力調節背心</span></label>
+                        <input type="text" id="bcdSize" placeholder="例如: L" class="w-24 p-1 border text-xs rounded bg-white">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2"><input type="checkbox" id="needReg" class="rounded"><span>Regulator 調節器</span></label>
+                        <span class="text-xs text-slate-400 w-24 text-center">標準配置</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2"><input type="checkbox" id="needFins" class="rounded"><span>Fins 蛙鞋</span></label>
+                        <input type="text" id="finsSize" placeholder="例如: 42-43" class="w-24 p-1 border text-xs rounded bg-white">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md">
+                確認預訂並獲取座位 / Submit & Get Seat
+            </button>
+        </form>
+
+        <!-- 結果顯示區 -->
+        <div id="result" class="mt-4 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg hidden"></div>
+
+        <!-- 🗺️ 實時座位平面圖 (完全按照你提供的擺位結構) -->
+        <div class="mt-8 pt-6 border-t border-slate-200">
+            <h3 class="font-bold text-slate-700 text-sm mb-3 text-center">🗺️ 船上座位實時分佈圖 / Live Seat Map</h3>
             
-            if(targetGroup) {
-                let requiredSIT = getMinSITForTargetGroup(currentGroup, targetGroup);
-                let recommendedAbsMins = prevExitAbsMins + requiredSIT;
-                let recommendText = formatTimeFromMins(recommendedAbsMins);
-                suggestionHTML = `<span>⚠️ 休息不足！建議延遲落水</span>要潛 ${abt} 分鐘，最快需要等到：<br><b style="font-size:1.1rem">${recommendText}</b> (需休息 ${Math.floor(requiredSIT/60)}h ${requiredSIT%60}m)`;
+            <!-- 船頭 -->
+            <div class="text-center text-xs font-bold text-blue-600 mb-3 bg-blue-50 py-1.5 rounded-lg border border-blue-100">🛟 船頭 (Bow)</div>
+
+            <!-- Group A (#1, #2, #3) -->
+            <div id="rowA" class="grid grid-cols-3 gap-2 mb-4"></div>
+
+            <!-- U型主體區塊 (6列網格對應你圖中的左右與底部環繞) -->
+            <div id="boatBody" class="grid grid-cols-6 gap-1.5 text-center text-xs">
+                <!-- 動態由 JS 填入 -->
+            </div>
+
+            <div class="flex justify-center items-center space-x-6 mt-4 text-xs text-slate-600">
+                <span class="flex items-center"><span class="w-3 h-3 bg-green-50 border border-green-300 rounded-sm mr-1.5"></span> 可選 Available</span>
+                <span class="flex items-center"><span class="w-3 h-3 bg-red-50 border border-red-200 rounded-sm mr-1.5"></span> 已佔用 Occupied</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK & 智能邏輯 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDN890oKfEuBykjwmkB7LYZmWBaRRdE-Fk",
+            authDomain: "dive-booking-app.firebaseapp.com",
+            projectId: "dive-booking-app",
+            storageBucket: "dive-booking-app.firebasestorage.app",
+            messagingSenderId: "842369140474",
+            appId: "1:842369140474:web:8652ee5b8e3cb8b9182b43",
+            measurementId: "G-1KKFD435GD"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 組別容量設定
+        const groupCapacity = {
+            "Group A": { max: 3, range: [1, 2, 3], next: "Group B1" },
+            "Group B1": { max: 5, range: [4, 5, 6, 7, 8], next: "Group B2" },
+            "Group B2": { max: 3, range: [9, 10, 11], next: "Group B3" },
+            "Group B3": { max: 3, range: [12, 13, 14], next: "Group C1" },
+            "Group C1": { max: 5, range: [15, 16, 17, 18, 19], next: "Group C2" },
+            "Group C2": { max: 3, range: [20, 21, 22], next: "Group C3" },
+            "Group C3": { max: 3, range: [23, 24, 25], next: null }
+        };
+
+        // 依照你提供的擺位圖設計的 6 列網格結構 (null 代表走廊空白位)
+        const layoutGrid = [
+            [25, null, 15, 14, null, 4],
+            [24, null, 16, 13, null, 5],
+            [23, null, 17, 12, null, 6],
+            [22, null, 18, 11, null, 7],
+            [21,   20, 19, 10,    9, 8]
+        ];
+
+        // 載入及渲染座位圖
+        async function loadSeatMap() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "blue_point_bookings"));
+                const occupiedSeats = [];
+                querySnapshot.forEach((doc) => {
+                    occupiedSeats.push(doc.data().assignedSeatNum);
+                });
+
+                // 1. 渲染頂部 Group A (#1, #2, #3)
+                const rowADiv = document.getElementById('rowA');
+                rowADiv.innerHTML = '';
+                for (let i = 1; i <= 3; i++) {
+                    const isOccupied = occupiedSeats.includes(i);
+                    const box = document.createElement('div');
+                    box.className = `p-2.5 rounded-lg font-bold text-xs text-center shadow-sm ${isOccupied ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-700 border border-green-300'}`;
+                    box.innerHTML = `#${String(i).padStart(2, '0')}<br><span class="text-[10px] font-normal">${isOccupied ? '已佔用' : '可選'}</span>`;
+                    rowADiv.appendChild(box);
+                }
+
+                // 2. 渲染 U 型主體區塊 (#4 到 #25)
+                const boatBodyDiv = document.getElementById('boatBody');
+                boatBodyDiv.innerHTML = '';
+
+                layoutGrid.forEach(row => {
+                    row.forEach(seatNum => {
+                        const cell = document.createElement('div');
+                        if (seatNum === null) {
+                            // 空白通道
+                            cell.className = "p-2";
+                        } else {
+                            const isOccupied = occupiedSeats.includes(seatNum);
+                            cell.className = `p-2 rounded-lg font-bold text-xs shadow-sm ${isOccupied ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-700 border border-green-300'}`;
+                            cell.innerHTML = `#${String(seatNum).padStart(2, '0')}<br><span class="text-[10px] font-normal">${isOccupied ? '已佔用' : '可選'}</span>`;
+                        }
+                        boatBodyDiv.appendChild(cell);
+                    });
+                });
+
+            } catch (error) {
+                console.error("載入座位圖失敗:", error);
             }
         }
-        
-        res.innerHTML = `<div class="alert-danger">${suggestionHTML}</div>`;
-        tripValid = false;
-        break;
-    }
 
-    let exitGroup = 'Z';
-    for(let k=0; k<t1.lim.length; k++) {
-        if(tbt <= t1.lim[k]) { exitGroup = GROUPS[k]; break; }
-    }
-    
-    currentGroup = exitGroup;
-    let exitTimeMins = entryMins + abt;
-    prevExitAbsMins = exitTimeMins;
-    lastExitMins = exitTimeMins;
+        loadSeatMap();
 
-    let html = '';
-    if(i > 1) {
-        html += `<div class="row"><span>SIT (休息時間):</span> <span class="val">${Math.floor(sitMins/60)}h ${sitMins%60}m</span></div>`;
-        html += `<div class="row"><span>餘氮時間 (RNT):</span> <span class="val">${rnt} min</span></div>`;
-    }
-    html += `<div class="row"><span>調整後免減壓極限:</span> <span class="val">${adjNDL} min</span></div>`;
-    html += `<div class="row"><span>出水時間:</span> <span class="val">${formatTimeFromMins(exitTimeMins)}</span></div>`;
-    html += `<div class="row"><span>出水群組:</span> <span class="badge">${exitGroup}</span></div>`;
-    
-    res.innerHTML = html;
-  }
-  
-  let noFlyBox = document.getElementById('nofly-result');
-  if(tripValid && diveCount > 0) {
-      let noflyMins = lastExitMins + (18 * 60);
-      document.getElementById('nofly-text').innerText = formatTimeFromMins(noflyMins);
-      noFlyBox.style.display = 'block';
-  } else {
-      noFlyBox.style.display = 'none';
-  }
-}
+        // 提交表單邏輯
+        document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            let targetGroup = document.getElementById('preferredGroup').value;
 
-addDive();
-</script>
+            const equipment = {
+                mask: document.getElementById('needMask').checked ? (document.getElementById('maskSize').value || 'Standard') : '自備 / Own',
+                topSuit: document.getElementById('needTopSuit').checked ? (document.getElementById('topSuitSize').value || 'Standard') : '自備 / Own',
+                bottomSuit: document.getElementById('needBottomSuit').checked ? (document.getElementById('needBottomSuit').value || 'Standard') : '自備 / Own',
+                bcd: document.getElementById('needBcd').checked ? (document.getElementById('bcdSize').value || 'Standard') : '自備 / Own',
+                regulator: document.getElementById('needReg').checked ? '需要 / Required' : '自備 / Own',
+                fins: document.getElementById('needFins').checked ? (document.getElementById('finsSize').value || 'Standard') : '自備 / Own',
+            };
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "blue_point_bookings"));
+                const groupCounts = {};
+                const occupiedSeats = [];
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    occupiedSeats.push(data.assignedSeatNum);
+                    groupCounts[data.assignedGroup] = (groupCounts[data.assignedGroup] || 0) + 1;
+                });
+
+                let allocatedGroup = targetGroup;
+                while (allocatedGroup && groupCounts[allocatedGroup] >= groupCapacity[allocatedGroup].max) {
+                    allocatedGroup = groupCapacity[allocatedGroup].next;
+                }
+
+                if (!allocatedGroup) {
+                    alert("很抱歉，本船目前所有組別已額滿！\nSorry, all groups on this boat are fully booked!");
+                    return;
+                }
+
+                const currentGroupConfig = groupCapacity[allocatedGroup];
+                let assignedSeatNum = null;
+                for (let seat of currentGroupConfig.range) {
+                    if (!occupiedSeats.includes(seat)) {
+                        assignedSeatNum = seat;
+                        break;
+                    }
+                }
+
+                if (assignedSeatNum === null) {
+                    alert("選擇的組別已無剩餘空位 / Selected group has no remaining seats.");
+                    return;
+                }
+
+                const seatCode = `#${String(assignedSeatNum).padStart(2, '0')}`;
+
+                await addDoc(collection(db, "blue_point_bookings"), {
+                    name,
+                    preferredGroup: targetGroup,
+                    assignedGroup: allocatedGroup,
+                    assignedSeatNum,
+                    seatCode,
+                    equipment,
+                    createdAt: new Date()
+                });
+
+                loadSeatMap();
+
+                const resultDiv = document.getElementById('result');
+                resultDiv.classList.remove('hidden');
+                
+                let noticeHTML = (targetGroup !== allocatedGroup) 
+                    ? `<p class="text-amber-600 text-xs mt-1">⚠️ 首選 ${targetGroup} 已滿，已自動跳轉至 ${allocatedGroup}。</p>` 
+                    : '';
+
+                resultDiv.innerHTML = `
+                    <h3 class="font-bold text-base mb-1">✅ 預訂成功 / Booking Confirmed!</h3>
+                    <hr class="my-1 border-green-200">
+                    <p><strong>參加者 / Name:</strong> ${name}</p>
+                    <p><strong>分配組別 / Group:</strong> ${allocatedGroup}</p>
+                    <p><strong>獲取座位 / Seat Number:</strong> <span class="text-lg font-bold text-blue-700">${seatCode}</span></p>
+                    ${noticeHTML}
+                    <div class="mt-2 text-xs text-slate-600">
+                        <strong>租借裝備 / Gear:</strong> 
+                        Mask: ${equipment.mask} | Suit: ${equipment.topSuit}/${equipment.bottomSuit} | BCD: ${equipment.bcd} | Reg: ${equipment.regulator} | Fins: ${equipment.fins}
+                    </div>
+                `;
+
+                document.getElementById('name').value = '';
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                alert("發生錯誤，請稍後再試 / Error: " + error.message);
+            }
+        });
+    </script>
 </body>
 </html>
